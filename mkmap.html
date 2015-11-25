@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+    <title>מפת הח&quot;כים</title>
+<link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
+<style>
+
+.node {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+.link line {
+  stroke: #999;
+  stroke-opacity: .6;
+}
+
+div { text-align:right; }
+
+#std { text-align: center; }
+
+#thanks { font-size:8; position:fixed; bottom:0px; left:0px; direction:rtl; }
+
+</style>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-37505333-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+</head>
+<body>
+<div id="thanks">נתונים מ<a href="http://oknesset.org">כנסת פתוחה</a>, מבוסס על <a href="http://bl.ocks.org/4062045">קוד מ-d3.js</a>.</div>
+<div id="chart">
+<div style="text-align:right;direction:rtl;position:absolute;top:10px;left:10px;padding:10px;background-color:#fff;z-index:3;border:solid 1px;display:none;" id="help-text">
+    <p><strong>מה רואים פה?</strong></p>
+    <ul style="list-style-position:inside">
+    <li>כל נקודה מייצגת ח&quot;כ. הצבע מייצג את המפלגה. אם עומדים על הח&quot;כ אפשר לראות את השם שלו/שלה ואת שם המפלגה.</li>
+    <li>קו בין שתי נקודות מייצג שישנן הצעות חוק משותפות לשני הח&quot;כים (כאלו ששני הח&quot;כים יזמו במשותף)</li>
+    <li>קו עבה יותר מציין שיש יותר הצעות חוק.</li>
+    <li>ניתן לבחור אם מציגים את כל הקשרים (<i>סתם חברים</i>) או רק קשרים חזקים (<i>הכי חברים</i>)</li>
+    </ul>
+    <!--p><strong>ניתוחים של הויזואליזציה:</strong>
+    <a href="http://www.facebook.com/photo.php?fbid=513359428697900&set=a.181257155241464.42928.114171195283394&type=1&theater">גל חן</a>,
+    <a href="http://blogs.haaretz.co.il/talschneider/396/">טל שניידר</a>
+    </p-->
+</div>
+<div class="icon-question-sign" style="position:absolute;top:5px;left:5px;" id="help-icon"></div>
+<div class="row">
+    <div style="text-align:right;">מוצגים ה-<span id="std"></span>% החזקים ביותר מכלל הקשרים בין הח&quot;כים</div>
+    <div>
+      <div class="btn" id="less-std"><i class="icon-chevron-left"></i>סתם חברים</div>
+      <div class="btn" id="more-std">הכי חברים<i class="icon-user icon-chevron-right"></i></div>
+    </div>
+</div>
+
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="/data.js"></script>
+<script>
+
+var width = 960,
+    height = 500;
+
+var STD = 20;
+
+var color = d3.scale.category20();
+
+var force = d3.layout.force()
+    .charge(-120)
+    .linkDistance(30)
+    .size([width, height]);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .style("position","absolute")
+    .style("top","0")
+    .style("z-index","-1");
+
+function start_force(data) {
+
+    $("#std").html(STD+"");
+    var _nodes = _.filter(nodes,function(x) { return x.percentile < STD; } );
+    var _links = _.filter(links,function(x) { return x.percentile < STD; } );
+
+    console.log(_nodes[0]);
+    console.log(_links[0]);
+
+    force
+        .nodes(_nodes)
+        .links(_links);
+
+    var link = svg.selectAll(".link")
+        .data(_links, function(x) { return x.source.id+":"+x.target.id; });
+    var linkEnter = link.enter().insert("g",".node")
+        .attr("class", "link");
+    linkEnter.append("line")
+        .style("stroke-width", function(d) { return (Math.sqrt(d.value)+1)+"px"; });
+    linkEnter.append("line")
+        .style("stroke-opacity", 0.1)
+        .style("stroke-linecap","round")
+        .style("stroke", function(d) { return color(d.source.party); })
+        .style("stroke-width", function(d) { return (d.source.party == d.target.party) ? 20 : 0; } );
+    linkEnter.append("title")
+        .text(function(d) { return "ישנן " + d.count + " הצעות חוק משותפות" + (d.count2 == 0 ? "" : ", מתוכן "+d.count2+" הצעות של שני ח\"כים אלו בלבד"); }); //"
+    link.exit().remove();
+
+    var node = svg.selectAll(".node")
+        .data(_nodes, function(x) { return x.id; });
+
+    var nodeEnter = node.enter().insert("g")
+                        .attr("class", "node");
+
+    nodeEnter.append("circle")
+        .attr("r",7)
+        .style("fill", function(d) { return color(d.party); })
+        .style("stroke", "none")
+        .style("cursor", "pointer")
+    nodeEnter.append("image")
+        .attr("xlink:href","data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJ\nbWFnZVJlYWR5ccllPAAABMxJREFUeNq8V11MHFUUvvOzfzOzLLtsl21qwC1sV2hZYGFBGtDQWtOm\nL22kTTT1xTY1pmljNKkv/j7piw8+G9RojPXFV0kwpsZg0laWApWkSdOlBOImKFXS/WVn1++MO5Nl\nO+AUpHdymDs7c+/5zrnnfOfAlctl9sdfy6x6xKI9bKPBcRzjBf64IAhnBV5oYhwLYY+kqqo/qUV1\ntFQuzSWmJ5mV4a/fxTgzAN3R2MOKmaa4yW63f+10OgcdDgcTRVEDVCqV2NraGsvlcmo+l/8E88uT\n07+qVgCIVpCSclgclBX5mizJQafLyWw2G+N53gBAUigUhEwm80YmndmNZS9Z2Zs3/bW8XjieYx6P\n5zu32x1U3Aoj6wFIU65tAiDkDZfLxfANk2X5xYH4wfNbB7DefLJ2gIQUkGINI46uVmiQZyRZYn6/\n/8N4d5+wJQDlqovneNba0vq6w+nQLDVTbAYCwehTFOXpbR8BAo/JitS/meW1QkdjE20s1hM79l8A\nxI08UJ12HM/X0V230FLg4ntfg++J7QchRjDYuGbF8nWCq7ExkN52EFJ6hcPhO3R/FACUFUPPDE1s\nOwjBcOzEyROfIw0tKyeww4eGi5GnImPbPoKSWkIQyl+++tr5P60C8O/ys1OnR77ADitb80CNNV0d\n3YWBgwNnLly8UKJU1JnPTEj5O++9fS/QGHjLSrBaomIUGSpQY4mZyZdbWvaOXvnmW+f1a9e149EH\nHdHhI4fZyMgLd0FEz1mxXssWs2J0oK2DCMiF3P8YPHAWlo3jKE7B+uzUbKIdn7ybzWZPLi4u2jUr\nkPOh0JMpTEchH0EedB7oasf675HEdgC9fPPW1FeWq2G0vdOOgvMDOH+IWK1YLDJUuavZXPYVvE4S\nKU3NJBTMI5Ulhd6u+GxRLWoxA6BHJEm6YnfYfcQH+XyeAfA5rBm1BCAe6/sUvH9O5346W2zActkc\nld1xPN9GhMxSlcT4G3MP7gqURfD9syjZEcklMQDQCIlKNSpkKZ1OH4UnxjcFgIAbVGTlZyooZL0R\nBzhv8gRtRnOdF7Rs4f5lPgIrCiITbaLGAxSwelCTF7A+dX/lfnhmbvqBaT/Q0RYVGvwNn9FGJNXU\nS5vBMm3j2uJjUDZ1S5UeQVesj8pRBuvq6j7A45umaQiXn8YZhknJRoVHV6JZK4qG0HO1xWbryAB8\ncym6v9NnCsDr876vK98s17cqFS+J/gb/xYfSsHN/Vxe6nSkKPN2SnRgUR9h/JZVKBVK/p1RDU2hv\n6BIFkF52d0pof2SUD71lbB0T4vVR6v0epeZvZejZ0tzUdAaPN0Q9+r0N3kb0+TsOQAeBP8OGB9BA\nNuULeV5wPCYAuIprxT1GFvTGeyLVubvTQsQFYpIMDyhud6CWOHZykB4wqmh4YF8knEVuPhbrdWkO\nNavVPNCK+dWFewt7JiZ+YVOJBJuZmaUC8r9ZHQgE0KZ3s77+ftbb28PqvfXjqAXP1xYjKq/HIYcg\ng8vLy57k3SSbn59n88l5trS0xNIVUCARtrq6aigI7g4y8LyhjDojNC/U0KJXCDGX5FrAqx8hY5X7\n8obluG1fu/Yf0W+3b1GktlcJecqjcxfEV7UsWdUFkbIlyCzkJmSOmhSzhuQfAQYAXSMPclR+MogA\nAAAASUVORK5CYII=")
+        .attr("x", -6)
+        .attr("y", -6)
+        .attr("width", 12)
+        .attr("height", 12)
+        .style("opacity",0.5);
+    nodeEnter.append("text")
+        .attr("dx", 0)
+        .attr("dy", "16px")
+        .style("fill", function(d) { return color(d.party); } )
+        .style("stroke", function(d) { return d3.rgb(color(d.party)).darker().toString(); } )
+        .style("stroke-width","0.5px")
+        .style("pointer-events","none")
+        .style("font","10px sans-serif")
+        .style("text-anchor","middle")
+        .text(function(d) { return d.name });
+    nodeEnter.append("title")
+        .text(function(d) { return d.fullname; });
+    node.exit().remove();
+
+    node.call(force.drag);
+
+    force.on("tick", function() {
+        link.selectAll("line")
+            .attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+    });
+    force.start();
+}
+
+$( function() {
+    $("#more-std").click( function() { STD-=1; start_force(); } );
+    $("#less-std").click( function() { STD+=1; start_force(); } );
+    $("#help-icon,#help-text").hover( function() { $("#help-text").css("display","inherit"); },
+                                      function() { $("#help-text").css("display","none"); } );
+    for ( var i = 0 ; i < links.length ; i++ ) {
+      var link = links[i];
+      link.source = nodes[link.source];
+      link.target = nodes[link.target];
+    }
+    nodes = _.values(nodes);
+    start_force();
+} );
+
+
+</script>
+</body>
+</html>
