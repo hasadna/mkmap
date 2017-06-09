@@ -1,4 +1,4 @@
-from gevent import monkey; monkey.patch_socket()
+from gevent import monkey; monkey.patch_all()
 import gevent
 from gevent.pool import Pool
 import json
@@ -8,6 +8,7 @@ import random
 import itertools
 import math
 import time
+import os
 
 pool = Pool(4)
 
@@ -23,6 +24,8 @@ def get_json(url):
       print "trying %s" % url,
       cachekey = 'cache/%s' % url.encode('hex')
       try:
+        if not os.path.exists(os.getcwd()+'/cache'):
+          os.makedirs(os.getcwd()+'/cache')
         data = file(cachekey).read()
       except:
         global reqcount
@@ -37,7 +40,7 @@ def get_json(url):
       print "OK"
       return data
     except Exception, e:
-      print "ERROR %s" % e
+      print "ERROR %r" % e
       gevent.sleep(random.randint(retry,retry*2))
       #retry = retry * 2
 
